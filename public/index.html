@@ -8,6 +8,7 @@
         body { font-family: sans-serif; margin: 20px; }
         h1, h2 { border-bottom: 2px solid #ddd; }
         form { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        #message { border: 1px solid #ccc; padding: 10px; margin-top: 10px; background: #eee; }
     </style>
 </head>
 <body>
@@ -15,7 +16,7 @@
     <h1>在庫管理システム</h1>
 
     <h2>1. 画像の一括アップロード</h2>
-    <form id="image-upload-form">
+    <form>
         <p>Supabase Storageの 'product-images' バケットに直接アップロードしてください。</p>
         <p>
             <a href="https://supabase.com/dashboard/project/YOUR_PROJECT_ID/storage/buckets/product-images" target="_blank">
@@ -28,12 +29,55 @@
     <h2>2. CSVアップロードと一括登録</h2>
     <form id="csv-upload-form">
         <p>画像ファイル名（拡張子なし）と商品情報を紐付けたCSVファイルをアップロードしてください。</p>
-        <input type="file" id="csv-file" accept=".csv">
+        <input type="file" id="csv-file" accept=".csv" required>
         <button type="submit">CSVをアップロードして登録実行</button>
     </form>
+
+    <div id="message" style="display:none;"></div>
 
     <h2>現在の在庫</h2>
     <p><a href="/products" target="_blank">/products APIで現在の在庫（JSON）を確認する</a></p>
 
-</body>
+
+    <script>
+        // HTMLの要素を取得
+        const csvForm = document.getElementById('csv-upload-form');
+        const csvFile = document.getElementById('csv-file');
+        const messageArea = document.getElementById('message');
+
+        // フォームが送信 (submit) されたときの処理
+        csvForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // 本来のフォーム送信動作をキャンセル
+
+            messageArea.style.display = 'block';
+            messageArea.textContent = 'CSVをアップロード中です...';
+
+            // 1. フォームデータを作成
+            const formData = new FormData();
+            formData.append('csvFile', csvFile.files[0]); // 'csvFile' という名前でファイルを追加
+
+            try {
+                // 2. /upload-csv エンドポイントに POSTリクエストで送信
+                const response = await fetch('/upload-csv', {
+                    method: 'POST',
+                    body: formData, // ファイルを添付
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    // サーバーがエラーを返した場合
+                    messageArea.textContent = 'エラー: ' + result.error;
+                } else {
+                    // 成功した場合
+                    messageArea.textContent = `成功！ ${result.rowCount} 件のデータが解析されました。`;
+                }
+
+            } catch (err) {
+                // 通信エラーなど
+                messageArea.textContent = 'エラーが発生しました: ' + err.message;
+            }
+        });
+    </script>
+    </body>
 </html>
