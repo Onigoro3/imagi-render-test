@@ -5,29 +5,42 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- この行を追加 ---
 // 'public' フォルダの中身を、Webサイトのルート（/）として提供する
-app.use(express.static('public')); 
-// --------------------
+app.use(express.static('public'));
 
 // --- Supabaseの接続設定 ---
+// Renderの環境変数からURLとキーを読み込む
 const supabaseUrl = process.env.SUPABASE_URL;
-// ... (中略) ...
+const supabaseKey = process.env.SUPABASE_KEY; // <-- おそらくこの行が抜けていました
+
+// Supabaseクライアントを作成
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-
-// --- 以前のメインページ ( / ) の処理をコメントアウト（または削除） ---
-// app.get('/', (req, res) => {
-//   res.send('こんにちは！Renderでのデプロイテスト成功です！');
-// });
-// ----------------------------------------------------
+// -------------------------
 
 // --- /products にアクセスが来たときの処理 ---
 app.get('/products', async (req, res) => {
-// ... (ここはそのまま) ...
+  try {
+    // Supabaseの 'products' テーブルから全てのデータ (*) を選択 (select)
+    const { data, error } = await supabase
+      .from('products')
+      .select('*');
+
+    if (error) {
+      // もしエラーがあればエラー内容を返す
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    // エラーがなければ、取得したデータをJSON形式で返す
+    res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+// ----------------------------------------------------
 
 // サーバーを起動する処理
 app.listen(PORT, () => {
-// ... (ここはそのまま) ...
+  console.log(`サーバーがポート ${PORT} で起動しました`);
 });
