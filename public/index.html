@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在庫管理システム</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1, h2 { border-bottom: 2px solid #ddd; }
+        form { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>在庫管理システム</h1>
+
+    <h2>1. 画像の一括アップロード</h2>
+    <form id="image-upload-form">
+        <p>Supabase Storageの 'product-images' バケットに直接アップロードしてください。</p>
+        <p>
+            <a href="https://supabase.com/dashboard/project/YOUR_PROJECT_ID/storage/buckets/product-images" target="_blank">
+                Supabase Storageを開く
+            </a>
+        </p>
+        <p><small>（注：このリンクの YOUR_PROJECT_ID の部分は、ご自身のIDに置き換えてください）</small></p>
+    </form>
+
+    <h2>2. CSVアップロードと一括登録</h2>
+    <form id="csv-upload-form">
+        <p>画像ファイル名（拡張子なし）と商品情報を紐付けたCSVファイルをアップロードしてください。</p>
+        <input type="file" id="csv-file" accept=".csv">
+        <button type="submit">CSVをアップロードして登録実行</button>
+    </form>
+
+    <h2>現在の在庫</h2>
+    <p><a href="/products" target="_blank">/products APIで現在の在庫（JSON）を確認する</a></p>
+
+</body>
+</html>
