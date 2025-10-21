@@ -20,10 +20,12 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 // -------------------------
 
-// --- /products API (これは変更なし) ---
+// --- /products API (テーブル名を 'Products' に修正) ---
 app.get('/products', async (req, res) => {
   try {
-    const { data, error } = await supabase.from('products').select('*');
+    const { data, error } = await supabase
+      .from('Products') // ★修正
+      .select('*');
     if (error) {
       res.status(500).json({ error: error.message });
       return;
@@ -44,11 +46,9 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
   }
 
   // 2. アップロードされたファイル（バッファ）を読み取り可能なストリームに変換
-  // ★★★ 文字化け対策 ★★★
-  // バッファを明示的に 'utf-8' 文字列としてストリームに渡す
+  // (文字化け対策)
   const bufferStream = new stream.PassThrough();
   bufferStream.end(req.file.buffer.toString('utf-8'));
-  // ★★★ ここまで ★★★
 
   const results = []; // CSVのデータを一時的に保存する配列
 
@@ -78,7 +78,6 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
           const imageName = `${sku}.jpg`; // .jpgを自動で付与
           
           // Supabase Storageの公開URLを組み立てる
-          // 形式: [SUPABASE_URL]/storage/v1/object/public/[BUCKET_NAME]/[FILE_NAME]
           const imageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${imageName}`;
 
           return {
@@ -92,10 +91,10 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
         console.log(dataToInsert.slice(0, 5));
         console.log('-----------------------------');
 
-        // 6. Supabaseの 'products' テーブルに一括登録 (upsert)
-        // upsert: skuが競合(conflict)したら、nameとimage_urlを更新(update)する
+        // 6. Supabaseの 'Products' テーブルに一括登録 (upsert)
+        // (テーブル名を 'Products' に修正)
         const { data, error } = await supabase
-          .from('products')
+          .from('Products') // ★修正
           .upsert(dataToInsert, {
             onConflict: 'sku', // 'sku' 列をキーにして重複をチェック
           })
