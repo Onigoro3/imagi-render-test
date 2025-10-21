@@ -34,8 +34,7 @@ app.get('/products', async (req, res) => {
   }
 });
 
-// --- ★★★ 新規追加：CSVアップロード処理の窓口 ★★★ ---
-// POSTリクエストで /upload-csv にファイルが送られてきたときの処理
+// --- CSVアップロード処理の窓口 ---
 app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
   console.log('CSVアップロード処理が開始されました。');
 
@@ -45,8 +44,11 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
   }
 
   // 2. アップロードされたファイル（バッファ）を読み取り可能なストリームに変換
+  // ★★★ 文字化け対策 ★★★
+  // バッファを明示的に 'utf-8' 文字列としてストリームに渡す
   const bufferStream = new stream.PassThrough();
-  bufferStream.end(req.file.buffer);
+  bufferStream.end(req.file.buffer.toString('utf-8'));
+  // ★★★ ここまで ★★★
 
   const results = []; // CSVのデータを一時的に保存する配列
 
@@ -57,21 +59,67 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
       // CSVの1行ごとの処理
       results.push(data);
     })
+    // 4. CSVの読み取りがすべて完了した後の処理
     .on('end', async () => {
-      // 4. CSVの読み取りがすべて完了した後の処理
       console.log('CSVの解析が完了しました。');
-      console.log('--- 解析結果 (最初の5件) ---');
-      console.log(results.slice(0, 5));
-      console.log('-----------------------------');
+      
+      if (results.length === 0) {
+        console.log('CSVデータが空でした。');
+        return res.json({ message: 'CSVデータが空です。', rowCount: 0 });
+      }
+      
+      console.log(`データベースへの登録処理を開始します。件数: ${results.length}`);
+      
+      try {
+        // 5. Supabase用にデータを整形 (image_url を作成)
+        const dataToInsert = results.map(row => {
+          // CSVの 'sku' (例: DM-25EX2-DMR3) から画像URLを生成
+          const sku = row.sku;
+          const imageName = `${sku}.jpg`; // .jpgを自動で付与
+          
+          // Supabase Storageの公開URLを組み立てる
+          // 形式: [SUPABASE_URL]/storage/v1/object/public/[BUCKET_NAME]/[FILE_NAME]
+          const imageUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${imageName}`;
 
-      // ★★★ ここにSupabaseへの一括登録処理を追加していく（次のステップ） ★★★
+          return {
+            sku: sku,
+            name: row.name,
+            image_url: imageUrl // 生成したURLを追加
+          };
+        });
 
-      // とりあえず成功メッセージを返す
-      res.json({
-        message: 'CSVの解析に成功しました。',
-        rowCount: results.length,
-        data: results.slice(0, 5) // 確認用に最初の5件を返す
-      });
+        console.log('--- 登録データ (最初の5件) ---');
+        console.log(dataToInsert.slice(0, 5));
+        console.log('-----------------------------');
+
+        // 6. Supabaseの 'products' テーブルに一括登録 (upsert)
+        // upsert: skuが競合(conflict)したら、nameとimage_urlを更新(update)する
+        const { data, error } = await supabase
+          .from('products')
+          .upsert(dataToInsert, {
+            onConflict: 'sku', // 'sku' 列をキーにして重複をチェック
+          })
+          .select(); // 登録/更新した結果を返す
+
+        if (error) {
+          // Supabaseエラー
+          console.error('Supabaseエラー:', error);
+          return res.status(500).json({ error: 'DB登録エラー: ' + error.message });
+        }
+
+        console.log('データベースへの登録が完了しました。');
+        
+        // 7. 成功メッセージを返す
+        res.json({
+          message: `成功！ ${data.length} 件の商品を登録/更新しました。`,
+          rowCount: data.length,
+        });
+
+      } catch (dbErr) {
+        // 予期せぬエラー
+        console.error('DB処理エラー:', dbErr);
+        res.status(500).json({ error: 'DB処理中にエラーが発生しました。' + dbErr.message });
+      }
     })
     .on('error', (err) => {
       // エラー処理
